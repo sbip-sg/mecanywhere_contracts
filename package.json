@@ -1,0 +1,26 @@
+{
+  "name": "meca_contracts",
+  "version": "0.0.1",
+  "description": "MECA Ganache test server",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sbip-sg/meca_contracts.git"
+  },
+  "keywords": [
+    "MECA",
+    "Ganache"
+  ],
+  "author": "sdcioc (Stefan-Dan Ciocirlan)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/sbip-sg/meca_contracts/issues"
+  },
+  "homepage": "https://github.com/sbip-sg/meca_contracts#readme",
+  "dependencies": {
+    "ganache": "^7.9.2"
+  }
+}
