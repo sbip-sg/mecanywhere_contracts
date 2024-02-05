@@ -16,10 +16,12 @@ import "./TaskAbstract.sol";
 
 contract MecaTaskContract is MecaTaskAbstractContract
 {
-    // TODO: maybe make like list and the mapping is jsut
-    // for the index of the task in the list
+    // We have a list with all the tasks and a mapping to check if a task exists
+    // and what is the position in the list of a task (if it exists is index + 1, if not is 0)
     mapping(bytes32 => mapping(bytes32 => uint32)) public tasks_index;
     task[] public tasks;
+
+    uint256 public constant TASK_FEE = 0.001 ether;
 
     constructor() MecaTaskAbstractContract()
     {
@@ -28,9 +30,17 @@ contract MecaTaskContract is MecaTaskAbstractContract
     function createTask(
         bytes32[2] calldata cid,
         uint256 fee,
-        bytes1 computing_type
-    ) public override returns (bool)
+        uint8 computing_type
+    ) public payable override returns (bool)
     {
+        if (msg.value != TASK_FEE) {
+            revert();
+        }
+        if (tasks_index[cid[0]][cid[1]] != 0) {
+            return false;
+        }
+        tasks.push(task(cid, msg.sender, fee, computing_type));
+        tasks_index[cid[0]][cid[1]] = uint32(tasks.length);
         return true;
     }
 
@@ -38,14 +48,22 @@ contract MecaTaskContract is MecaTaskAbstractContract
         bytes32[2] calldata cid
     ) public view override returns (task memory)
     {
-        return task(cid, owner, 0, 0);
+        uint32 index = tasks_index[cid[0]][cid[1]];
+        if (index == 0) {
+            return task(cid, address(0), 0, 0);
+        }
+        return tasks[index - 1];
     }
 
     function getTaskFee(
         bytes32[2] calldata cid
     ) public view override returns (uint256)
     {
-        return 0;
+        uint32 index = tasks_index[cid[0]][cid[1]];
+        if (index == 0) {
+            return 0;
+        }
+        return tasks[index - 1].fee;
     }
 
     function updateTaskFee(
@@ -53,6 +71,11 @@ contract MecaTaskContract is MecaTaskAbstractContract
         uint256 fee
     ) public override returns (bool)
     {
+        uint32 index = tasks_index[cid[0]][cid[1]];
+        if (index == 0) {
+            return false;
+        }
+        tasks[index - 1].fee = fee;
         return true;
     }
 
@@ -61,6 +84,11 @@ contract MecaTaskContract is MecaTaskAbstractContract
         address new_owner
     ) public override returns (bool)
     {
+        uint32 index = tasks_index[cid[0]][cid[1]];
+        if (index == 0) {
+            return false;
+        }
+        tasks[index - 1].owner = new_owner;
         return true;
     }
 
@@ -68,12 +96,20 @@ contract MecaTaskContract is MecaTaskAbstractContract
         bytes32[2] calldata cid
     ) public override returns (bool)
     {
+        uint32 index = tasks_index[cid[0]][cid[1]];
+        if (index == 0) {
+            return false;
+        }
+        tasks[index - 1] = tasks[tasks.length - 1];
+        tasks_index[tasks[index - 1].cid[0]][tasks[index - 1].cid[1]] = index;
+        tasks_index[cid[0]][cid[1]] = 0;
+        tasks.pop();
         return true;
     }
 
     function getTasks(
     ) public view override returns (task[] memory)
     {
-        return new task[](0);
+        return tasks;
     }
 }

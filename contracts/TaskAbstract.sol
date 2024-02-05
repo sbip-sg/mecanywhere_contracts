@@ -20,7 +20,7 @@ abstract contract MecaTaskAbstractContract
         bytes32[2] cid;
         address owner;
         uint256 fee;
-        bytes1 computing_type;
+        uint8 computing_type;
     }
 
     constructor() 
@@ -31,8 +31,8 @@ abstract contract MecaTaskAbstractContract
     function createTask(
         bytes32[2] calldata cid,
         uint256 fee,
-        bytes1 computing_type
-    ) public virtual returns (bool);
+        uint8 computing_type
+    ) public payable virtual returns (bool);
 
     function getTask(
         bytes32[2] calldata cid
