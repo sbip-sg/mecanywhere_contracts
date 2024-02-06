@@ -22,12 +22,27 @@ contract MecaSchedulerContract is MecaSchedulerAbstractContract
     mapping(address => uint256) public hosts_end_block;
     mapping(address => uint256) public hosts_nonce;
 
+    // TODO: add a schedule flag for the contract
+    // so we can stop geetting tasks before we
+    // want to clear the contract
+    // transform task tasks in an array
+    // add a host array so we can clear the contract
+
     uint256 public constant SCHEDULER_FEE = 1 wei;
 
     constructor() MecaSchedulerAbstractContract()
     {
     }
 
+    function clear() public override
+    {
+        require(msg.sender == owner, "Owner only");
+        meca_host_contract = MecaHostAbstractContract(address(0));
+        meca_task_contract = MecaTaskAbstractContract(address(0));
+        meca_tower_contract = MecaTowerAbstractContract(address(0));
+        (bool success, ) = owner.call{value: address(this).balance}("");
+        require(success, "Transfer failed.");
+    }
 
     function sendTask(
         address tower_address,

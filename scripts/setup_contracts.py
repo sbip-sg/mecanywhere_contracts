@@ -187,6 +187,79 @@ def set_scheduler_to_dao(
     return tx_receipt.status == 1
 
 
+def set_contract_to_scheduler(
+    w3: web3.Web3,
+    private_key: str,
+    scheduler_contract: web3.contract.Contract,
+    contract_address: str,
+    contract_type: int
+) -> bool:
+    r"""
+    Set contract to the scheduler
+
+    Args:
+        w3 : web3 instance
+        private_key : private key of the account
+        scheduler_contract : scheduler contract
+        contract_address : address of the contract
+        contract_type : type of the contract (0: host, 1: tower, 2: task)
+    """
+    account = Account.from_key(private_key)
+
+    gas_extra = 100000
+
+    gas_estimate = scheduler_contract.functions.setTowerContract(
+        contract_address).estimate_gas()
+
+    # verify the balance
+    account_balance = w3.eth.get_balance(account.address)
+
+    if account_balance < (gas_estimate + gas_extra) * w3.eth.gas_price:
+        raise ValueError(
+            "Insufficient balance to deploy the contract"
+        )
+
+    gas_to_send = gas_estimate + gas_extra
+
+    if contract_type == 0:
+        set_transaction = scheduler_contract.functions.setHostContract(
+            contract_address).build_transaction({
+                "from": account.address,
+                "gas": gas_to_send,
+                "nonce": w3.eth.get_transaction_count(account.address)
+            })
+    elif contract_type == 1:
+        set_transaction = scheduler_contract.functions.setTowerContract(
+            contract_address).build_transaction({
+                "from": account.address,
+                "gas": gas_to_send,
+                "nonce": w3.eth.get_transaction_count(account.address)
+            })
+    elif contract_type == 2:
+        set_transaction = scheduler_contract.functions.setTaskContract(
+            contract_address).build_transaction({
+                "from": account.address,
+                "gas": gas_to_send,
+                "nonce": w3.eth.get_transaction_count(account.address)
+            })
+    else:
+        raise ValueError(
+            f"Invalid contract type {contract_type}"
+        )
+
+    singed_set_transaction = w3.eth.account.sign_transaction(
+        set_transaction, private_key
+    )
+
+    tx_hash = w3.eth.send_raw_transaction(
+        singed_set_transaction.rawTransaction
+    )
+
+    tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+
+    return tx_receipt.status == 1
+
+
 def setup_contracts(endpoint_uri: str):
 
     # ge tthe current directory

@@ -30,6 +30,12 @@ contract MecaDaoContract
         _;
     }
 
+    function clear() public onlyOwner {
+        meca_scheduler_contract = MecaSchedulerAbstractContract(address(0));
+        (bool success, ) = owner.call{value: address(this).balance}("");
+        require(success, "Transfer failed.");
+    }
+
     function setSchedulerContract(
         address scheduler_contract
     ) public onlyOwner returns (bool) {

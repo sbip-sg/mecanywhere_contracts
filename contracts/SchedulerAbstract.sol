@@ -51,6 +51,8 @@ abstract contract MecaSchedulerAbstractContract
         owner = tx.origin;
     }
 
+    function clear() public virtual;
+
     function setHostContract(
         address host_contract
     ) public virtual returns (bool) {
