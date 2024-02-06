@@ -16,8 +16,8 @@ import "./HostAbstract.sol";
 
 contract MecaHostContract is MecaHostAbstractContract
 {
-    // host -> cid -> task_fee_contract
-    mapping(address => mapping(bytes32 => mapping(bytes32 => MecaTaskFee)))tasks_fee_contracts;
+    // host -> cid -> task_fees
+    mapping(address => mapping(bytes32 => mapping(bytes32 => host_task)))tasks_fees;
 
     // We have a list with all the hosts and a mapping to check if a host exists
     // and what is the position in the list of a host (if it exists is index + 1, if not is 0)
@@ -51,12 +51,11 @@ contract MecaHostContract is MecaHostAbstractContract
     }
 
     function addStake(
-        address host_address
     ) public payable override returns (bool)
     {
-        uint32 index = hosts_index[host_address];
+        uint32 index = hosts_index[msg.sender];
         if (index == 0) {
-            return false;
+            revert();
         }
         hosts[index - 1].stake += msg.value;
         return true;
@@ -89,25 +88,43 @@ contract MecaHostContract is MecaHostAbstractContract
         bytes32[2] calldata cid
     ) public view override returns (MecaTaskFee)
     {
-        return tasks_fee_contracts[host_address][cid[0]][cid[1]];
+        return tasks_fees[host_address][cid[0]][cid[1]].task_fee_contract;
+    }
+
+    function getTaskBlockTimeout(
+        address host_address,
+        bytes32[2] calldata cid
+    ) public view override returns (uint256)
+    {
+        return tasks_fees[host_address][cid[0]][cid[1]].block_timeout;
     }
 
     function setTaskFeeContract(
-        address host_address,
         bytes32[2] calldata cid,
         MecaTaskFee task_fee_contract
     ) public override returns (bool)
     {
-        tasks_fee_contracts[host_address][cid[0]][cid[1]] = task_fee_contract;
+        if (tasks_fees[msg.sender][cid[0]][cid[1]].block_timeout == 0) {
+            revert();
+        }
+        tasks_fees[msg.sender][cid[0]][cid[1]].task_fee_contract = task_fee_contract;
         return true;
     }
 
-    function deleteTaskFeeContract(
-        address host_address,
+    function setTaskBlockTimeout(
+        bytes32[2] calldata cid,
+        uint256 block_timeout
+    ) public override returns (bool)
+    {
+        tasks_fees[msg.sender][cid[0]][cid[1]].block_timeout = block_timeout;
+        return true;
+    }
+
+    function deleteTask(
         bytes32[2] calldata cid
     ) public override returns (bool)
     {
-        delete tasks_fee_contracts[host_address][cid[0]][cid[1]];
+        delete tasks_fees[msg.sender][cid[0]][cid[1]];
         return true;
     }
 

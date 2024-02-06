@@ -6,7 +6,10 @@ const accounts_data = JSON.parse(accounts_json);
 
 console.log(Object.entries(accounts_data));
 accounts = Object.entries(accounts_data).map(
-    ([key, value], i) => value.private_key + "," + value.balance
+    ([key, value], i) => new Object({
+      'secretKey': value.private_key,
+      'balance': value.balance
+    })
 );
 console.log(accounts);
 

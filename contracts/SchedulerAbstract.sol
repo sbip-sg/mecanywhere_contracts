@@ -25,6 +25,27 @@ abstract contract MecaSchedulerAbstractContract
     MecaTaskAbstractContract public meca_task_contract;
     MecaTowerAbstractContract public meca_tower_contract;
 
+    struct running_task_fee 
+    {
+        uint256 tower_fee;
+        uint256 host_fee;
+        uint256 scheduler_fee;
+        uint256 task_fee;
+        uint256 insurance_fee;
+    }
+
+    struct running_task {
+        bytes32[2] cid;
+        bytes32 input_hash;
+        uint256 size;
+        address tower_address;
+        address host_address;
+        address owner;
+        uint256 start_block;
+        uint256 block_timeout_limit;
+        running_task_fee fee;
+    }
+
     constructor() 
     {
         owner = tx.origin;
@@ -72,8 +93,21 @@ abstract contract MecaSchedulerAbstractContract
     function sendTask(
         address tower_address,
         address host_address,
-        bytes32[2] calldata cid
+        bytes32[2] calldata cid,
+        uint256 caller_host_fee,
+        uint256 input_size,
+        bytes32 input_hash
     ) public payable virtual returns (bool) {
+        
+    }
+
+    function getRunningTask(
+        bytes32 task_id
+    ) public view virtual returns (running_task memory);
+
+    function finishTask(
+        bytes32 tid
+    ) public virtual returns (bool) {
         
     }
 
