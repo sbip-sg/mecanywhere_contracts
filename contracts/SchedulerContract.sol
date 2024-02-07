@@ -47,23 +47,23 @@ contract MecaSchedulerContract is MecaSchedulerAbstractContract
     function sendTask(
         address tower_address,
         address host_address,
-        bytes32[2] calldata cid,
+        bytes32 task_ipfs_sha256,
         uint256 caller_host_fee,
         uint256 input_size,
         bytes32 input_hash
     ) public payable override returns (bool)
     {
         // compute the fees and check if the caller has enough funds
-        uint256 task_fee = meca_task_contract.getTaskFee(cid);
-        uint256 task_size = meca_task_contract.getTaskSize(cid);
-        uint256 task_block_timeout = meca_host_contract.getTaskBlockTimeout(host_address, cid);
+        uint256 task_fee = meca_task_contract.getTaskFee(task_ipfs_sha256);
+        uint256 task_size = meca_task_contract.getTaskSize(task_ipfs_sha256);
+        uint256 task_block_timeout = meca_host_contract.getTaskBlockTimeout(host_address, task_ipfs_sha256);
         uint256 tower_fee = meca_tower_contract.getTowerFee(tower_address, task_size, task_block_timeout);
-        uint256 host_task_fee_type = meca_host_contract.getTaskFeeType(host_address, cid);
+        uint256 host_task_fee_type = meca_host_contract.getTaskFeeType(host_address, task_ipfs_sha256);
         uint256 host_fee = 0;
         if (host_task_fee_type == 0) {
-            host_fee = meca_host_contract.getTaskFeeContract(host_address, cid).getFee();
+            host_fee = meca_host_contract.getTaskFeeContract(host_address, task_ipfs_sha256).getFee();
         } else if (host_task_fee_type == 1) {
-            host_fee = meca_host_contract.getTaskFeeContract(host_address, cid).getFeeSize(input_size);
+            host_fee = meca_host_contract.getTaskFeeContract(host_address, task_ipfs_sha256).getFeeSize(input_size);
         } else if (host_task_fee_type == 2) {
             host_fee = caller_host_fee;
         } else {
@@ -97,7 +97,7 @@ contract MecaSchedulerContract is MecaSchedulerAbstractContract
             abi.encodePacked(
                 tower_address,
                 host_address,
-                cid,
+                task_ipfs_sha256,
                 input_hash,
                 hosts_nonce[host_address]
         ));
@@ -105,7 +105,7 @@ contract MecaSchedulerContract is MecaSchedulerAbstractContract
 
         // make the task
         running_tasks[task_id] = running_task({
-            cid: cid,
+            ipfs_sha256: task_ipfs_sha256,
             input_hash: input_hash,
             size: task_size,
             tower_address: tower_address,
@@ -144,7 +144,7 @@ contract MecaSchedulerContract is MecaSchedulerAbstractContract
         payable(task.tower_address).transfer(task.fee.tower_fee);
         payable(task.host_address).transfer(task.fee.host_fee);
         payable(owner).transfer(task.fee.insurance_fee);
-        address task_owner = meca_task_contract.getTaskOwner(task.cid);
+        address task_owner = meca_task_contract.getTaskOwner(task.ipfs_sha256);
         payable(task_owner).transfer(task.fee.task_fee);
 
         // remove the task

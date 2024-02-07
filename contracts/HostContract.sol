@@ -16,8 +16,8 @@ import "./HostAbstract.sol";
 
 contract MecaHostContract is MecaHostAbstractContract
 {
-    // host -> cid -> task_fees
-    mapping(address => mapping(bytes32 => mapping(bytes32 => host_task)))tasks_fees;
+    // host -> task_ipfs_sha256 -> task_fees
+    mapping(address => mapping(bytes32 => host_task)) tasks_fees;
 
     // We have a list with all the hosts and a mapping to check if a host exists
     // and what is the position in the list of a host (if it exists is index + 1, if not is 0)
@@ -85,46 +85,46 @@ contract MecaHostContract is MecaHostAbstractContract
 
     function getTaskFeeContract(
         address host_address,
-        bytes32[2] calldata cid
+        bytes32 task_ipfs_sha256
     ) public view override returns (MecaTaskFee)
     {
-        return tasks_fees[host_address][cid[0]][cid[1]].task_fee_contract;
+        return tasks_fees[host_address][task_ipfs_sha256].task_fee_contract;
     }
 
     function getTaskBlockTimeout(
         address host_address,
-        bytes32[2] calldata cid
+        bytes32 task_ipfs_sha256
     ) public view override returns (uint256)
     {
-        return tasks_fees[host_address][cid[0]][cid[1]].block_timeout;
+        return tasks_fees[host_address][task_ipfs_sha256].block_timeout;
     }
 
     function setTaskFeeContract(
-        bytes32[2] calldata cid,
+        bytes32 task_ipfs_sha256,
         MecaTaskFee task_fee_contract
     ) public override returns (bool)
     {
-        if (tasks_fees[msg.sender][cid[0]][cid[1]].block_timeout == 0) {
+        if (tasks_fees[msg.sender][task_ipfs_sha256].block_timeout == 0) {
             revert();
         }
-        tasks_fees[msg.sender][cid[0]][cid[1]].task_fee_contract = task_fee_contract;
+        tasks_fees[msg.sender][task_ipfs_sha256].task_fee_contract = task_fee_contract;
         return true;
     }
 
     function setTaskBlockTimeout(
-        bytes32[2] calldata cid,
+        bytes32 task_ipfs_sha256,
         uint256 block_timeout
     ) public override returns (bool)
     {
-        tasks_fees[msg.sender][cid[0]][cid[1]].block_timeout = block_timeout;
+        tasks_fees[msg.sender][task_ipfs_sha256].block_timeout = block_timeout;
         return true;
     }
 
     function deleteTask(
-        bytes32[2] calldata cid
+        bytes32 task_ipfs_sha256
     ) public override returns (bool)
     {
-        delete tasks_fees[msg.sender][cid[0]][cid[1]];
+        delete tasks_fees[msg.sender][task_ipfs_sha256];
         return true;
     }
 

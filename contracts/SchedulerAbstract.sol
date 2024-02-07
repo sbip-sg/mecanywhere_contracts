@@ -35,7 +35,7 @@ abstract contract MecaSchedulerAbstractContract
     }
 
     struct running_task {
-        bytes32[2] cid;
+        bytes32 ipfs_sha256;
         bytes32 input_hash;
         uint256 size;
         address tower_address;
@@ -95,7 +95,7 @@ abstract contract MecaSchedulerAbstractContract
     function sendTask(
         address tower_address,
         address host_address,
-        bytes32[2] calldata cid,
+        bytes32 task_ipfs_sha256,
         uint256 caller_host_fee,
         uint256 input_size,
         bytes32 input_hash

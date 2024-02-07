@@ -28,3 +28,6 @@ RUN pip3 install web3[tester] && pip install py-solc-x
 
 # upddate node/npm
 RUN npm install n -g && n stable
+
+# extra packages
+RUN pip3 install py-multiformats-cid

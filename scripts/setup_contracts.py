@@ -8,6 +8,7 @@ import pathlib
 from solcx import compile_source
 import logging
 import json
+import multiformats_cid
 
 logger = logging.getLogger(__name__)
 
@@ -253,6 +254,219 @@ def set_contract_to_scheduler(
 
     tx_hash = w3.eth.send_raw_transaction(
         singed_set_transaction.rawTransaction
+    )
+
+    tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+
+    return tx_receipt.status == 1
+
+
+def register_tower(
+    w3: web3.Web3,
+    tower_private_key: str,
+    tower_contract: web3.contract.Contract,
+    size_limit: int,
+    public_connection: str,
+    fee: int,
+    fee_type: int
+) -> bool:
+    r"""
+    Register tower
+
+    Args:
+        w3 : web3 instance
+        tower_private_key : private key of the tower account
+        tower_contract : tower contract
+        size_limit : size limit of the tower
+        public_connection : public connection of the tower
+        fee : fee of the tower
+        fee_type : fee type of the tower (0: fixed, 1: size, 2: time, 3: size_time)
+    """
+    account = Account.from_key(tower_private_key)
+
+    gas_extra = 100000
+
+    gas_estimate = tower_contract.functions.registerTower(
+        size_limit, public_connection, fee, fee_type).estimate_gas()
+    
+    # verify the balance
+    account_balance = w3.eth.get_balance(account.address)
+
+    if account_balance < (gas_estimate + gas_extra) * w3.eth.gas_price:
+        raise ValueError(
+            "Insufficient balance to deploy the contract"
+        )
+    
+    gas_to_send = gas_estimate + gas_extra
+
+    register_transaction = tower_contract.functions.registerTower(
+        size_limit, public_connection, fee, fee_type).build_transaction({
+            "from": account.address,
+            "gas": gas_to_send,
+            "nonce": w3.eth.get_transaction_count(account.address)
+        })
+    
+    singed_register_transaction = w3.eth.account.sign_transaction(
+        register_transaction, tower_private_key
+    )
+
+    tx_hash = w3.eth.send_raw_transaction(
+        singed_register_transaction.rawTransaction
+    )
+
+    tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+
+    return tx_receipt.status == 1
+
+
+def register_host(
+    w3: web3.Web3,
+    host_private_key: str,
+    host_contract: web3.contract.Contract,
+    block_timeout_limit: int,
+    public_key_type: int,
+    public_key: str
+) -> bool:
+    r"""
+    Register host
+
+    Args:
+        w3 : web3 instance
+        host_private_key : private key of the host account
+        host_contract : host contract
+        block_timeout_limit : block timeout limit of the host
+        public_key_type : public key type of the host (0: rsa, 1: ecc)
+        public_key : public key of the host
+    """
+    account = Account.from_key(host_private_key)
+
+    gas_extra = 100000
+
+    gas_estimate = host_contract.functions.registerHost(
+        public_key, public_key_type, block_timeout_limit).estimate_gas()
+    
+    # verify the balance
+    account_balance = w3.eth.get_balance(account.address)
+
+    if account_balance < (gas_estimate + gas_extra) * w3.eth.gas_price:
+        raise ValueError(
+            "Insufficient balance to deploy the contract"
+        )
+    
+    gas_to_send = gas_estimate + gas_extra
+
+    register_transaction = host_contract.functions.registerHost(
+        public_key, public_key_type, block_timeout_limit).build_transaction({
+            "from": account.address,
+            "gas": gas_to_send,
+            "nonce": w3.eth.get_transaction_count(account.address)
+        })
+    
+    singed_register_transaction = w3.eth.account.sign_transaction(
+        register_transaction, host_private_key
+    )
+
+    tx_hash = w3.eth.send_raw_transaction(
+        singed_register_transaction.rawTransaction
+    )
+
+    tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+
+    return tx_receipt.status == 1
+
+
+def add_task(
+    w3: web3.Web3,
+    task_developer_private_key: str,
+    task_contract: web3.contract.Contract,
+    cid: str,
+    fee: int,
+    computing_type: int,
+    size: int
+) -> str:
+    r"""
+    Add task
+
+    Args:
+        w3 : web3 instance
+        task_developer_private_key : private key of the task developer account
+        task_contract : task contract
+        cid : cid of the task
+        fee : fee of the task
+        computing_type : computing type of the task (0: cpu only, 1: cpu + gpu, 2: fpga, 3: asic)
+        size : size of the task in memory of input and output
+    """
+    account = Account.from_key(task_developer_private_key)
+
+    gas_extra = 100000
+
+    # convert the cid to class
+    cid = multiformats_cid.make_cid(cid)
+    # encode in hex
+    hex_cid_bytes = cid.encode("base16")
+    hex_cid_hex_string = str(hex_cid_bytes)
+    hex_cid_hex_string = hex_cid_hex_string[3:-1]
+    cid_version = hex_cid_hex_string[:2]
+    hex_cid_hex_string = hex_cid_hex_string[2:]
+    cid_codec = hex_cid_hex_string[:2]
+    hex_cid_hex_string = hex_cid_hex_string[2:]
+    cid_multihash_type = hex_cid_hex_string[:2]
+    hex_cid_hex_string = hex_cid_hex_string[2:]
+    cid_multihash_length = hex_cid_hex_string[:2]
+    hex_cid_hex_string = hex_cid_hex_string[2:]
+    cid_multihash = hex_cid_hex_string
+    if cid_version != "01":
+        raise ValueError(
+            "Invalid cid version"
+        )
+    if cid_codec != "70":
+        raise ValueError(
+            "Invalid cid codec"
+        )
+    # sha3
+    if cid_multihash_type != "12":
+        raise ValueError(
+            "Invalid cid multihash type"
+        )
+
+    # 32 bytes
+    if cid_multihash_length != "20":
+        raise ValueError(
+            "Invalid cid multihash length"
+        )
+    
+    # verify length 32 bytes -> 64 hex caracters
+    if len(cid_multihash) != 64:
+        raise ValueError(
+            "Invalid cid multihash string length"
+        )
+
+    gas_estimate = task_contract.functions.addTask(
+        cid_multihash, fee, computing_type, size).estimate_gas()
+    
+    # verify the balance
+    account_balance = w3.eth.get_balance(account.address)
+
+    if account_balance < (gas_estimate + gas_extra) * w3.eth.gas_price:
+        raise ValueError(
+            "Insufficient balance to register the task"
+        )
+    
+    gas_to_send = gas_estimate + gas_extra
+
+    add_task_transaction = task_contract.functions.createTask(
+        cid_multihash, fee, computing_type, size).build_transaction({
+            "from": account.address,
+            "gas": gas_to_send,
+            "nonce": w3.eth.get_transaction_count(account.address)
+        })
+    
+    singed_add_task_transaction = w3.eth.account.sign_transaction(
+        add_task_transaction, task_developer_private_key
+    )
+
+    tx_hash = w3.eth.send_raw_transaction(
+        singed_add_task_transaction.rawTransaction
     )
 
     tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)

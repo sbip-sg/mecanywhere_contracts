@@ -146,84 +146,84 @@ abstract contract MecaHostAbstractContract
 
     function getTaskFeeContract(
         address host_address,
-        bytes32[2] calldata cid
+        bytes32 task_ipfs_sha256
     ) public view virtual returns (MecaTaskFee);
 
     function getTaskBlockTimeout(
         address host_address,
-        bytes32[2] calldata cid
+        bytes32 task_ipfs_sha256
     ) public view virtual returns (uint256);
 
     function getTaskFeeType(
         address host_address,
-        bytes32[2] calldata cid
+        bytes32 task_ipfs_sha256
     ) public view returns (uint8)
     {
-        return getTaskFeeContract(host_address, cid).getFeeType();
+        return getTaskFeeContract(host_address, task_ipfs_sha256).getFeeType();
     }
 
     function getTaskFee(
         address host_address,
-        bytes32[2] calldata cid
+        bytes32 task_ipfs_sha256
     ) public view returns (uint256)
     {
-        return getTaskFeeContract(host_address, cid).getFee();
+        return getTaskFeeContract(host_address, task_ipfs_sha256).getFee();
     }
 
     function setTaskFeeContract(
-        bytes32[2] calldata cid,
+        bytes32 task_ipfs_sha256,
         MecaTaskFee task_fee_contract
     ) public virtual returns (bool);
 
     function setTaskFeeStaticContract(
-        bytes32[2] calldata cid,
+        bytes32 task_ipfs_sha256,
         uint256 fee
     ) public virtual returns (bool) {
         return setTaskFeeContract(
-            cid,
+            task_ipfs_sha256,
             new MecaTaskFeeStatic(fee));
     }
 
     function setTaskFeeSizeContract(
-        bytes32[2] calldata cid,
+        bytes32 task_ipfs_sha256,
         uint256 fee
     ) public virtual returns (bool) {
         return setTaskFeeContract(
-            cid,
+            task_ipfs_sha256,
             new MecaTaskFeeSize(fee));
     }
 
     function setTaskBlockTimeout(
-        bytes32[2] calldata cid,
+        bytes32 task_ipfs_sha256,
         uint256 block_timeout
     ) public virtual returns (bool);
 
     function addTask(
-        bytes32[2] calldata cid,
+        bytes32 task_ipfs_sha256,
         uint256 block_timeout_limit,
         MecaTaskFee task_fee_contract
     ) public virtual returns (bool) {
-        return setTaskBlockTimeout(cid, block_timeout_limit) &&setTaskFeeContract(cid, task_fee_contract); 
+        return setTaskBlockTimeout(task_ipfs_sha256, block_timeout_limit) &&setTaskFeeContract(task_ipfs_sha256, task_fee_contract); 
     }
 
     function addStaticTask(
-        bytes32[2] calldata cid,
+        bytes32 task_ipfs_sha256,
         uint256 block_timeout_limit,
         uint256 fee
     ) public virtual returns (bool) {
-        return addTask(cid, block_timeout_limit, new MecaTaskFeeStatic(fee));
+        return addTask(task_ipfs_sha256, block_timeout_limit, new MecaTaskFeeStatic(fee));
     }
 
     function addSizeTask(
-        bytes32[2] calldata cid,
+        bytes32 task_ipfs_sha256,
         uint256 block_timeout_limit,
         uint256 fee
     ) public virtual returns (bool) {
-        return addTask(cid, block_timeout_limit, new MecaTaskFeeSize(fee));
+        return addTask(task_ipfs_sha256, block_timeout_limit, new MecaTaskFeeSize(fee));
     }
 
     function deleteTask(
-        bytes32[2] calldata cid
+        bytes32 task_ipfs_sha256
     ) public virtual returns (bool);
 
     function getHosts(
