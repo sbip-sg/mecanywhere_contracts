@@ -151,41 +151,41 @@ abstract contract MecaSchedulerAbstractContract
 
     /**
     * @notice The setHostContract function
-    * @param newHostContract The new host contract
+    * @param newAddress The new host contract address
     */
     function setHostContract(
-        address newHostContract
+        address newAddress
     )
         external
         onlyOwner
     {
-        hostContract = MecaHostAbstractContract(payable(newHostContract));
+        hostContract = MecaHostAbstractContract(payable(newAddress));
     }
 
     /**
     * @notice The setTaskContract function
-    * @param newTaskContract The new task contract
+    * @param newAddress The new task contract address
     */
     function setTaskContract(
-        address newTaskContract
+        address newAddress
     )
         external
         onlyOwner
     {
-        taskContract = MecaTaskAbstractContract(payable(newTaskContract));
+        taskContract = MecaTaskAbstractContract(payable(newAddress));
     }
 
     /**
     * @notice The setTowerContract function
-    * @param newTowerContract The new tower contract
+    * @param newAddress The new tower contract address
     */
     function setTowerContract(
-        address newTowerContract
+        address newAddress
     )
         external
         onlyOwner
     {
-        towerContract = MecaTowerAbstractContract(payable(newTowerContract));
+        towerContract = MecaTowerAbstractContract(payable(newAddress));
     }
 
     /**
