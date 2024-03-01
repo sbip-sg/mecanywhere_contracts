@@ -14,221 +14,210 @@ pragma solidity ^0.8.17;
 
 import "./TowerAbstract.sol";
 
-contract MecaTaskContract is MecaTowerAbstractContract
+contract MecaTowerContract is MecaTowerAbstractContract
 {
     // We have a list with all the tower and a mapping to check if a tower exists
     // and what is the position in the list of a tower (if it exists is index + 1, if not is 0)
-    mapping(address => uint32) public towers_index;
-    tower[] public towers;
+    mapping(address => uint32) public towersIndex;
+    Tower[] public towers;
 
-    mapping(address => address[]) public tower_pending_hosts;
-    mapping(address => address[]) public tower_active_hosts;
+    mapping(address => address[]) public towerPendingHosts;
+    mapping(address => address[]) public towerActiveHosts;
+    // custom modifiers
 
-    constructor() MecaTowerAbstractContract()
+    // constructor
+
+    constructor(
+        uint256 towerInitialStake,
+        uint256 hostRequestFee,
+        uint256 failedTaskPenalty
+    )
+        MecaTowerAbstractContract(
+            towerInitialStake,
+            hostRequestFee,
+            failedTaskPenalty
+        )
     {
     }
 
-    function registerTower(
-        uint256 size_limit,
-        string calldata public_connection,
-        uint256 fee,
-        uint8 fee_type
-    ) public payable override returns (bool)
+
+    // External functions
+
+    // External functions that are view
+    
+    // External functions that are pure
+
+    // Public functions
+
+    // Internal functions
+    function _clear() internal override
     {
-        if (towers_index[msg.sender] != 0) {
+        // TODO: maybe go through tower as pops and delete them
+        while (towers.length > 0) {
+            uint256 stake = towers[towers.length - 1].stake;
+            address payable towerOwner = towers[towers.length - 1].owner;
+            uint256 pending_hosts = _deleteTower(towers[towers.length - 1].owner);
+            stake += pending_hosts * HOST_REQUEST_FEE;
+            if (stake > 0) {
+                towerOwner.transfer(stake);
+            }
+        }
+    }
+
+    function _registerAsTower(
+        Tower memory tower
+    ) internal override {
+        if (towersIndex[tower.owner] != 0) {
             revert();
         }
-        towers.push(
-            tower(
-                msg.sender,
-                size_limit,
-                public_connection,
-                fee_type,
-                fee,
-                msg.value
-            )
-        );
-
-        towers_index[msg.sender] = uint32(towers.length);
-        tower_active_hosts[msg.sender] = new address[](0);
-        tower_pending_hosts[msg.sender] = new address[](0);
-        return true;
+        towers.push(tower);
+        towersIndex[tower.owner] = uint32(towers.length);
+        towerActiveHosts[tower.owner] = new address[](0);
+        towerPendingHosts[tower.owner] = new address[](0);
     }
 
-    function deleteTower(
+    function _addStake(
+        address tower_address,
+        uint256 stake
+    ) internal override {
+        uint32 index = _getTowerIndex(tower_address);
+        towers[index - 1].stake += stake;
+    }
+
+    function _removeStake(
+        address tower_address,
+        uint256 stake
+    ) internal override {
+        uint32 index = _getTowerIndex(tower_address);
+        towers[index - 1].stake -= stake;
+    }
+
+    function _updateSizeLimit(
+        address tower_address,
+        uint256 newSizeLimit
+    ) internal override {
+        uint32 index = _getTowerIndex(tower_address);
+        towers[index - 1].sizeLimit = newSizeLimit;
+    }
+
+    function _updatePublicConnection(
+        address tower_address,
+        string calldata newPublicConnection
+    ) internal override {
+        uint32 index = _getTowerIndex(tower_address);
+        towers[index - 1].publicConnection = newPublicConnection;
+    }
+
+    function _updateFee(
+        address tower_address,
+        uint8 newFeeType,
+        uint256 newFee
+    ) internal override {
+        uint32 index = _getTowerIndex(tower_address);
+        towers[index - 1].fee = newFee;
+        towers[index - 1].feeType = newFeeType;
+    }
+
+    function _deleteTower(
         address tower_address
-    ) public override returns (bool)
-    {
-        uint32 index = towers_index[tower_address];
-        if (index == 0) {
-            return false;
-        }
-        tower memory t = towers[index - 1];
+    ) internal override returns (uint256) {
+        uint32 index = _getTowerIndex(tower_address);
+        Tower memory t = towers[index - 1];
         towers[index - 1] = towers[towers.length - 1];
-        towers_index[towers[towers.length  - 1].owner] = index;
-        towers_index[t.owner] = 0;
+        towersIndex[towers[index  - 1].owner] = index;
+        towersIndex[t.owner] = 0;
         towers.pop();
-        tower_active_hosts[t.owner] = new address[](0);
-        tower_pending_hosts[t.owner] = new address[](0);
-        if (t.owner != msg.sender) {
-            revert();
-        }
-        if (t.stake > 0) {
-            payable(msg.sender).transfer(t.stake);
-        }
-        return true;
+        uint256 pending_hosts = towerPendingHosts[t.owner].length;
+        delete towerActiveHosts[t.owner];
+        delete towerPendingHosts[t.owner];
+        return pending_hosts;
     }
 
-    function addStake(
-    ) public payable override returns (bool)
+    function _registerHostForTower(
+        address tower_address,
+        address host_address
+    ) internal override {
+        towerPendingHosts[tower_address].push(host_address);
+    }
+
+    function _acceptHost(
+        address tower_address,
+        address host_address
+    ) internal override {
+        for (uint256 i = 0; i < towerPendingHosts[tower_address].length; i++) {
+            if (towerPendingHosts[tower_address][i] == host_address) {
+                towerActiveHosts[tower_address].push(host_address);
+                towerPendingHosts[tower_address][i] = towerPendingHosts[tower_address][towerPendingHosts[tower_address].length - 1];
+                towerPendingHosts[tower_address].pop();
+                return;
+            }
+        }
+    }
+
+    function _rejectHost(
+        address tower_address,
+        address host_address
+    ) internal override {
+        for (uint256 i = 0; i < towerPendingHosts[tower_address].length; i++) {
+            if (towerPendingHosts[tower_address][i] == host_address) {
+                towerPendingHosts[tower_address][i] = towerPendingHosts[tower_address][towerPendingHosts[tower_address].length - 1];
+                towerPendingHosts[tower_address].pop();
+                return;
+            }
+        }
+    }
+
+    function _deleteHost(
+        address tower_address,
+        address host_address
+    ) internal override {
+        for (uint256 i = 0; i < towerActiveHosts[tower_address].length; i++) {
+            if (towerActiveHosts[tower_address][i] == host_address) {
+                towerActiveHosts[tower_address][i] = towerActiveHosts[tower_address][towerActiveHosts[tower_address].length - 1];
+                towerActiveHosts[tower_address].pop();
+                return;
+            }
+        }
+    }
+
+    // Internal functions that are view
+
+    function _getTower(
+        address tower_address
+    ) internal view override returns (Tower memory)
     {
-        uint32 index = towers_index[msg.sender];
-        if (index == 0) {
-            revert();
-        }
-        towers[index - 1].stake += msg.value;
-        return true;
+        uint32 index = _getTowerIndex(tower_address);
+        return towers[index - 1];
     }
-
-    function updateTowerFee(
-        uint256 fee,
-        uint8 fee_type
-    ) public override returns (bool)
+    
+    function _getTowerHosts(
+        address tower_address
+    ) internal view override returns (address[] memory)
     {
-        uint32 index = towers_index[msg.sender];
-        if (index == 0) {
-            revert();
-        }
-        towers[index - 1].fee = fee;
-        towers[index - 1].fee_type = fee_type;
-        return true;
+        return towerActiveHosts[tower_address];
+    }
+    
+    function _getTowerPendingHosts(
+        address tower_address
+    ) internal view override returns (address[] memory)
+    {
+        return towerPendingHosts[tower_address];
     }
 
-    function getTowers(
-    ) public view override returns (tower[] memory)
+    function _getTowers(
+    ) internal view override returns (Tower[] memory)
     {
         return towers;
     }
 
-    function getTowerFee(
-        address tower_address,
-        uint256 size,
-        uint256 block_timeout_limit
-    ) public view override returns (uint256)
-    {
-        uint32 index = towers_index[tower_address];
-        if (index == 0) {
-            revert();
-        }
-        if (towers[index - 1].fee_type == 0) {
-            return towers[index - 1].fee;
-        } else if (towers[index - 1].fee_type == 1) {
-            return towers[index - 1].fee * size;
-        } else if (towers[index - 1].fee_type == 2) {
-            return towers[index - 1].fee * block_timeout_limit;
-        } else if (towers[index - 1].fee_type == 3) {
-            return towers[index - 1].fee * size * block_timeout_limit;
-        } else {
-            return 0;
-        }
-    }
-
-    function getTowerSizeLimit(
+    // Private functions
+    function _getTowerIndex(
         address tower_address
-    ) public view override returns (uint256)
+    ) private view returns (uint32)
     {
-        uint32 index = towers_index[tower_address];
-        if (index == 0) {
-            revert();
-        }
-        return towers[index - 1].size_limit;
+        uint32 index = towersIndex[tower_address];
+        require(index > 0, "Tower does not exist");
+        return index;
     }
 
-    function getTowerPublicConnection(
-        address tower_address
-    ) public view override returns (string memory)
-    {
-        uint32 index = towers_index[tower_address];
-        if (index == 0) {
-            revert();
-        }
-        return towers[index - 1].public_connection;
-    }
-
-    function getTowerStake(
-        address tower_address
-    ) public view override returns (uint256)
-    {
-        uint32 index = towers_index[tower_address];
-        if (index == 0) {
-            revert();
-        }
-        return towers[index - 1].stake;
-    }
-
-    function registerMeForTower(
-        address tower_address
-    ) public override returns (bool)
-    {
-        tower_pending_hosts[tower_address].push(msg.sender);
-        return true;
-    }
-
-    function acceptHost(
-        address host_address
-    ) public override returns (bool)
-    {
-        uint32 index = towers_index[msg.sender];
-        if (index == 0) {
-            revert();
-        }
-        for (uint256 i = 0; i < tower_pending_hosts[msg.sender].length; i++) {
-            if (tower_pending_hosts[msg.sender][i] == host_address) {
-                tower_active_hosts[msg.sender].push(host_address);
-                tower_pending_hosts[msg.sender][i] = tower_pending_hosts[msg.sender][tower_pending_hosts[msg.sender].length - 1];
-                tower_pending_hosts[msg.sender].pop();
-                return true;
-            }
-        }
-        return false;
-    }
-
-    function deleteHost(
-        address host_address
-    ) public override returns (bool)
-    {
-        uint32 index = towers_index[msg.sender];
-        if (index == 0) {
-            revert();
-        }
-        for (uint256 i = 0; i < tower_active_hosts[msg.sender].length; i++) {
-            if (tower_active_hosts[msg.sender][i] == host_address) {
-                tower_active_hosts[msg.sender][i] = tower_active_hosts[msg.sender][tower_active_hosts[msg.sender].length - 1];
-                tower_active_hosts[msg.sender].pop();
-                return true;
-            }
-        }
-        return false;
-    }
-
-    function getTowerHosts(
-        address tower_address
-    ) public view override returns (address[] memory)
-    {
-        return tower_active_hosts[tower_address];
-    }
-
-    function getTowerPendingHosts(
-        address tower_address
-    ) public view override returns (address[] memory)
-    {
-        return tower_pending_hosts[tower_address];
-    }
-
-    function deleteTowerPendingHosts(
-    ) public override returns (bool)
-    {
-        tower_pending_hosts[msg.sender] = new address[](0);
-        return true;
-    }
 }

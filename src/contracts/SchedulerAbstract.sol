@@ -19,98 +19,458 @@ import "./TaskAbstract.sol";
 
 abstract contract MecaSchedulerAbstractContract
 {
-    address public owner;
+    /// The owner of the contract
+    address payable public owner;
+    /// The scheduler fee
+    uint256 immutable public SCHEDULER_FEE;
+    /// The host contract
+    MecaHostAbstractContract internal hostContract;
+    /// The task contract
+    MecaTaskAbstractContract internal taskContract;
+    /// The tower contract
+    MecaTowerAbstractContract internal towerContract;
+    /// The scheduler nonce
+    uint256 public schedulerNonce;
+    /// The scheduler flag
+    bool public schedulerFlag;
 
-    MecaHostAbstractContract public meca_host_contract;
-    MecaTaskAbstractContract public meca_task_contract;
-    MecaTowerAbstractContract public meca_tower_contract;
-
-    struct running_task_fee 
+    /**
+    * @notice The RunningTaskFee structure
+    * @param tower The tower fee
+    * @param host The host fee
+    * @param scheduler The scheduler fee
+    * @param task The task fee
+    * @param insurance The insurance fee
+    */
+    struct RunningTaskFee 
     {
-        uint256 tower_fee;
-        uint256 host_fee;
-        uint256 scheduler_fee;
-        uint256 task_fee;
-        uint256 insurance_fee;
+        uint256 tower;
+        uint256 host;
+        uint256 scheduler;
+        uint256 task;
+        uint256 insurance;
     }
 
-    struct running_task {
-        bytes32 ipfs_sha256;
-        bytes32 input_hash;
+    /**
+    * @notice The RunningTask structure
+    * @param ipfsSha256 The IPFS hash of the task
+    * @param inputHash The input hash of the task
+    * @param size The size of the task
+    * @param towerAddress The address of the tower
+    * @param hostAddress The address of the host
+    * @param owner The owner of the task
+    * @param startBlock The start block of the task
+    * @param blockTimeout The block timeout of the task
+    * @param fee The fee of the task
+    */
+    struct RunningTask {
+        bytes32 ipfsSha256;
+        bytes32 inputHash;
         uint256 size;
-        address tower_address;
-        address host_address;
+        address towerAddress;
+        address hostAddress;
         address owner;
-        uint256 start_block;
-        uint256 block_timeout_limit;
-        running_task_fee fee;
+        uint256 startBlock;
+        uint256 blockTimeout;
+        RunningTaskFee fee;
     }
 
-    constructor() 
-    {
-        owner = tx.origin;
+    event TaskSent(
+        bytes32 taskId,
+        address sender
+    );
+
+    // custom modifiers
+    /**
+    * @notice The onlyOwner modifier
+    */
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Owner only");
+        _;
+    }
+    /**
+    * @notice The hasFee modifier
+    */
+    modifier hasFee() {
+        require(msg.value == SCHEDULER_FEE, "Minimum fee required");
+        _;
+    }
+    /**
+    * @notice activeScheduler modifier
+    */
+    modifier activeScheduler() {
+        require(schedulerFlag, "Scheduler not active");
+        _;
     }
 
-    function clear() public virtual;
+    // TODO: add a modifier for all task over
 
+    /**
+    * @notice The constructor
+    * @param schedulerFee The fee for the scheduler
+    */
+    constructor(
+        uint256 schedulerFee
+    ) {
+        owner = payable(tx.origin);
+        SCHEDULER_FEE = schedulerFee;
+        hostContract = MecaHostAbstractContract(payable(address(0)));
+        taskContract = MecaTaskAbstractContract(payable(address(0)));
+        towerContract = MecaTowerAbstractContract(payable(address(0)));
+        schedulerNonce = 0;
+        schedulerFlag = false;
+    }
+
+    // receive function
+
+    /**
+    * @notice The receive function
+    */
+    receive() external payable {
+        revert();
+    }
+
+    // fallback function
+
+    /**
+    * @notice The fallback function
+    */
+    fallback() external payable {
+        revert();
+    }
+
+    /**
+    * @notice The clear function
+    * @dev This function is used to clear the contract
+    */
+    function clear() external onlyOwner {
+        _clear();
+    }
+
+    // External functions
+
+    /**
+    * @notice The setHostContract function
+    * @param newHostContract The new host contract
+    */
     function setHostContract(
-        address host_contract
-    ) public virtual returns (bool) {
-        require(msg.sender == owner, "Owner only");
-        meca_host_contract = MecaHostAbstractContract(host_contract);
-        return true;
+        address newHostContract
+    )
+        external
+        onlyOwner
+    {
+        hostContract = MecaHostAbstractContract(payable(newHostContract));
     }
 
+    /**
+    * @notice The setTaskContract function
+    * @param newTaskContract The new task contract
+    */
     function setTaskContract(
-        address task_contract
-    ) public virtual returns (bool) {
-        require(msg.sender == owner, "Owner only");
-        meca_task_contract = MecaTaskAbstractContract(task_contract);
-        return true;
+        address newTaskContract
+    )
+        external
+        onlyOwner
+    {
+        taskContract = MecaTaskAbstractContract(payable(newTaskContract));
     }
 
+    /**
+    * @notice The setTowerContract function
+    * @param newTowerContract The new tower contract
+    */
     function setTowerContract(
-        address tower_contract
-    ) public virtual returns (bool) {
-        require(msg.sender == owner, "Owner only");
-        meca_tower_contract = MecaTowerAbstractContract(tower_contract);
-        return true;
+        address newTowerContract
+    )
+        external
+        onlyOwner
+    {
+        towerContract = MecaTowerAbstractContract(payable(newTowerContract));
     }
 
-    function getHostContract(
-    ) public view virtual returns (address) {
-        return address(meca_host_contract);
+    /**
+    * @notice The setSchedulerFlag function
+    * @param newSchedulerFlag The new scheduler flag
+    */
+    function setSchedulerFlag(
+        bool newSchedulerFlag
+    )
+        external
+        onlyOwner
+    {
+        schedulerFlag = newSchedulerFlag;
     }
 
-    function getTaskContract(
-    ) public view virtual returns (address) {
-        return address(meca_task_contract);
-    }
-
-    function getTowerContract(
-    ) public view virtual returns (address) {
-        return address(meca_tower_contract);
-    }
-
+    /**
+    * @notice Send a task to the scheduler
+    * @param towerAddress The address of the tower
+    * @param hostAddress The address of the host
+    * @param ipfsSha256 The IPFS hash of the task
+    * @param inputHash The hash of the input
+    */
     function sendTask(
-        address tower_address,
-        address host_address,
-        bytes32 task_ipfs_sha256,
-        uint256 caller_host_fee,
-        uint256 input_size,
-        bytes32 input_hash
-    ) public payable virtual returns (bool) {
+        address towerAddress,
+        address hostAddress,
+        bytes32 ipfsSha256,
+        bytes32 inputHash
+    )
+        external
+        payable
+        activeScheduler
+    {
         
+        uint256 taskSize = taskContract.getTaskSize(ipfsSha256);
+        uint256 taskBlockTimeout = hostContract.getTaskBlockTimeout(
+            hostAddress,
+            ipfsSha256
+        );
+
+        RunningTaskFee memory runningTaskFee = _getRunningTaskFee(
+            towerAddress,
+            hostAddress,
+            ipfsSha256,
+            taskSize,
+            taskBlockTimeout
+        );
+
+        uint256 towerSizeLimit = towerContract.getTowerSizeLimit(
+            towerAddress
+        );
+        uint256 hostBlockTimeoutLimit = hostContract.getHostBlockTimeoutLimit(
+            hostAddress
+        );
+
+        uint256 hostFirstAvailableBlock = getHostFirstAvailableBlock(
+            hostAddress
+        );
+
+        require(
+            (hostFirstAvailableBlock + taskBlockTimeout) <= (block.number + hostBlockTimeoutLimit),
+            "Host block timeout limit exceeded"
+        );
+
+        uint256 usedTowerSize = getTowerCurrentSize(towerAddress);
+
+        require(
+            (usedTowerSize + taskSize) <= towerSizeLimit,
+            "Tower size limit exceeded"
+        );
+
+        bytes32 taskId = keccak256(
+            abi.encodePacked(
+                towerAddress,
+                hostAddress,
+                ipfsSha256,
+                inputHash,
+                schedulerNonce
+            )
+        );
+
+        schedulerNonce += 1;
+
+        RunningTask memory runningTask = RunningTask({
+            ipfsSha256: ipfsSha256,
+            inputHash: inputHash,
+            size: taskSize,
+            towerAddress: towerAddress,
+            hostAddress: hostAddress,
+            owner: msg.sender,
+            startBlock: hostFirstAvailableBlock,
+            blockTimeout: taskBlockTimeout,
+            fee: runningTaskFee
+        });
+
+        _addRunningTask(
+            taskId,
+            runningTask
+        );
+
+        emit TaskSent(
+            taskId,
+            msg.sender
+        );
     }
 
-    function getRunningTask(
-        bytes32 task_id
-    ) public view virtual returns (running_task memory);
-
+    /**
+    * @notice Finish a task
+    * @param taskId The ID of the task
+    */
     function finishTask(
-        bytes32 tid
-    ) public virtual returns (bool) {
-        
+        bytes32 taskId
+    )
+        external
+    {
+        RunningTask memory runningTask = _getRunningTask(taskId);
+        require(
+            msg.sender == runningTask.owner,
+            "Only the owner can finish the task"
+        );
+        _deleteRunningTask(taskId);
+        payable(runningTask.towerAddress).transfer(runningTask.fee.tower);
+        payable(runningTask.hostAddress).transfer(runningTask.fee.host);
+        payable(msg.sender).transfer(runningTask.fee.insurance);
+        address taskOwner = taskContract.getTaskOwner(runningTask.ipfsSha256);
+        payable(taskOwner).transfer(runningTask.fee.task);
     }
+
+    // External functions that are view
+    
+    /**
+    * @notice Get the host contract
+    */
+    function getHostContract() external view returns (address) {
+        return address(hostContract);
+    } 
+
+    /**
+    * @notice Get the task contract
+    */
+    function getTaskContract() external view returns (address) {
+        return address(taskContract);
+    }
+
+    /**
+    * @notice Get the tower contract
+    */
+    function getTowerContract() external view returns (address) {
+        return address(towerContract);
+    }
+
+    /**
+    * @notice Get the running task
+    * @param taskId The ID of the task
+    * @return RunningTask The running task
+    */
+    function getRunningTask(
+        bytes32 taskId
+    )
+        external
+        view
+        returns (RunningTask memory)
+    {
+        return _getRunningTask(taskId);
+    }
+    
+    // External functions that are pure
+
+    // Public functions
+
+    /**
+    * @notice Get the host first available block
+    * @param hostAddress The address of the host
+    * @return uint256 The first available block
+    */
+    function getHostFirstAvailableBlock(
+        address hostAddress
+    )
+        public
+        view
+        virtual
+        returns (uint256);
+    
+
+    /**
+    * @notice Get the tower current size
+    * @param towerAddress The address of the tower
+    * @return uint256 The current size of the tower
+    */
+    function getTowerCurrentSize(
+        address towerAddress
+    )
+        public
+        view
+        virtual
+        returns (uint256);
+
+    // Internal functions
+
+    /**
+    * @notice The clear function
+    */
+    function _clear() internal virtual;
+
+    /**
+    * @notice Get the running fee
+    * @param towerAddress The address of the tower
+    * @param hostAddress The address of the host
+    * @param ipfsSha256 The IPFS hash of the task
+    * @param taskSize The size of the task
+    * @param taskBlockTimeout The block timeout of the task
+    * @return RunningTaskFee The running task fee
+    */
+    function _getRunningTaskFee(
+        address towerAddress,
+        address hostAddress,
+        bytes32 ipfsSha256,
+        uint256 taskSize,
+        uint256 taskBlockTimeout
+    )
+        internal
+        returns (RunningTaskFee memory)
+    {
+        uint256 taskFee = taskContract.getTaskFee(ipfsSha256);
+        uint256 towerFee = towerContract.getTowerFee(
+            towerAddress,
+            taskSize,
+            taskBlockTimeout
+        );
+        uint256 hostFee = hostContract.getTaskFee(
+            hostAddress,
+            ipfsSha256
+        );
+        uint256 insuranceFee = (taskFee + hostFee + towerFee) / 10;
+        uint256 totalFee = taskFee + hostFee + towerFee + SCHEDULER_FEE + insuranceFee;
+        require(msg.value == totalFee, "Wrong funds");
+
+        RunningTaskFee memory runningTaskFee = RunningTaskFee({
+            tower: towerFee,
+            host: hostFee,
+            scheduler: SCHEDULER_FEE,
+            task: taskFee,
+            insurance: insuranceFee
+        });
+
+        return runningTaskFee;
+
+    }
+
+    /**
+    * @notice The addRunningTask function
+    * @param taskId The ID of the task
+    * @param runningTask The running task
+    */
+    function _addRunningTask(
+        bytes32 taskId,
+        RunningTask memory runningTask
+    )
+        internal
+        virtual;
+    
+    /**
+    * @notice The deleteRunningTask function
+    * @param taskId The ID of the task
+    */
+    function _deleteRunningTask(
+        bytes32 taskId
+    )
+        internal
+        virtual;
+
+    // Internal functions that are view
+
+    /**
+    * @notice Get the running task
+    * @param taskId The ID of the task
+    * @return RunningTask The running task
+    */
+    function _getRunningTask(
+        bytes32 taskId
+    )
+        internal
+        view
+        virtual
+        returns (RunningTask memory);
+
+    // Private functions
 
 }

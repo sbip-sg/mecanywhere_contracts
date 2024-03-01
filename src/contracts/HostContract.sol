@@ -14,168 +14,185 @@ pragma solidity ^0.8.17;
 
 import "./HostAbstract.sol";
 
-contract MecaHostContract is MecaHostAbstractContract
-{
-    // host -> task_ipfs_sha256 -> task_fees
-    mapping(address => mapping(bytes32 => host_task)) tasks_fees;
+contract MecaHostContract is MecaHostAbstractContract {
+    // host -> task_ipfsSha256 -> task_fees
+    mapping(address => mapping(bytes32 => HostTask)) hostTasks;
 
     // We have a list with all the hosts and a mapping to check if a host exists
     // and what is the position in the list of a host (if it exists is index + 1, if not is 0)
-    mapping(address => uint32) public hosts_index;
-    host[] public hosts;
+    mapping(address => uint32) public hostsIndex;
+    Host[] public hosts;
 
-    constructor() MecaHostAbstractContract()
+    // custom modifiers
+
+    // constructor
+
+    constructor(
+        uint256 hostRegisterFee,
+        uint256 hostInitialStake,
+        uint256 failedTaskPenalty,
+        uint256 taskRegisterFee
+    )
+        MecaHostAbstractContract(
+            hostRegisterFee,
+            hostInitialStake,
+            failedTaskPenalty,
+            taskRegisterFee
+        )
     {
     }
 
-    function registerHost(
-        bytes[] calldata public_key,
-        uint8 public_key_type,
-        uint256 block_timeout_limit
-    ) public payable override returns (bool)
-    {
-        if (hosts_index[msg.sender] != 0) {
-            return false;
-        }
-        hosts.push(
-            host(
-                msg.sender,
-                public_key,
-                public_key_type,
-                block_timeout_limit,
-                msg.value
-            )
-        );
-        hosts_index[msg.sender] = uint32(hosts.length);
-        return true;
+    // External functions
+
+    // External functions that are view
+    
+    // External functions that are pure
+
+    // Public functions
+
+    // Internal functions
+
+    function _clear() internal override {
     }
 
-    function addStake(
-    ) public payable override returns (bool)
-    {
-        uint32 index = hosts_index[msg.sender];
-        if (index == 0) {
+    function _addHost(
+        Host memory host
+    ) internal override {
+        if (hostsIndex[host.owner] != 0) {
             revert();
         }
-        hosts[index - 1].stake += msg.value;
-        return true;
+        hosts.push(host);
+        hostsIndex[host.owner] = uint32(hosts.length);
     }
 
-    function getHostPublicKey(
-        address host_address
-    ) public view override returns (bytes[] memory, uint8)
-    {
-        uint32 index = hosts_index[host_address];
-        if (index == 0) {
-            return (new bytes[](0), 0);
-        }
-        return (hosts[index - 1].public_key, hosts[index - 1].public_key_type);
+    function _addStake(
+        address hostAddress,
+        uint256 stake
+    ) internal override {
+        uint32 index = _getHostIndex(hostAddress);
+        hosts[index - 1].stake += stake;
     }
 
-    function getHostBlockTimeoutLimit(
-        address host_address
-    ) public view override returns (uint256)
-    {
-        uint32 index = hosts_index[host_address];
-        if (index == 0) {
-            return 0;
-        }
-        return hosts[index - 1].block_timeout_limit;
+    function _removeStake(
+        address hostAddress,
+        uint256 stake
+    ) internal override {
+        uint32 index = _getHostIndex(hostAddress);
+        hosts[index - 1].stake -= stake;
     }
 
-    function getTaskFeeContract(
-        address host_address,
-        bytes32 task_ipfs_sha256
-    ) public view override returns (MecaTaskFee)
-    {
-        return tasks_fees[host_address][task_ipfs_sha256].task_fee_contract;
+    function _updateBlockTimeoutLimit(
+        address hostAddress,
+        uint256 newBlockTimeoutLimit
+    ) internal override {
+        uint32 index = _getHostIndex(hostAddress);
+        hosts[index - 1].blockTimeoutLimit = newBlockTimeoutLimit;
     }
 
-    function getTaskBlockTimeout(
-        address host_address,
-        bytes32 task_ipfs_sha256
-    ) public view override returns (uint256)
-    {
-        return tasks_fees[host_address][task_ipfs_sha256].block_timeout;
+    function _updatePublicKey(
+        address hostAddress,
+        bytes32[2] calldata newPublicKey
+    ) internal override {
+        uint32 index = _getHostIndex(hostAddress);
+        hosts[index - 1].eccPublicKey = newPublicKey;
     }
 
-    function setTaskFeeContract(
-        bytes32 task_ipfs_sha256,
-        MecaTaskFee task_fee_contract
-    ) public override returns (bool)
-    {
-        if (tasks_fees[msg.sender][task_ipfs_sha256].block_timeout == 0) {
+    function _deleteHost(
+        address hostAddress
+    ) internal override  returns (uint256) {
+        uint32 index = _getHostIndex(hostAddress);
+        uint256 toPay = hosts[index - 1].stake;
+        hosts[index - 1] = hosts[hosts.length - 1];
+        hostsIndex[hosts[index - 1].owner] = index;
+        hostsIndex[hostAddress] = 0;
+        hosts.pop();
+        return toPay;
+    }
+
+    function _addTask(
+        address hostAddress,
+        bytes32 ipfsSha256,
+        HostTask memory task
+    ) internal override {
+        if (hostTasks[hostAddress][ipfsSha256].blockTimeout != 0) {
             revert();
         }
-        tasks_fees[msg.sender][task_ipfs_sha256].task_fee_contract = task_fee_contract;
-        return true;
+        hostTasks[hostAddress][ipfsSha256] = task;
     }
 
-    function setTaskBlockTimeout(
-        bytes32 task_ipfs_sha256,
-        uint256 block_timeout
-    ) public override returns (bool)
+    function _updateTaskBlockTimeout(
+        address hostAddress,
+        bytes32 ipfsSha256,
+        uint256 newBlockTimeout
+    ) internal override {
+        require(hostTasks[hostAddress][ipfsSha256].blockTimeout != 0);
+        require(newBlockTimeout != 0);
+        hostTasks[hostAddress][ipfsSha256].blockTimeout = newBlockTimeout;
+    }
+
+    function _updateTaskFee(
+        address hostAddress,
+        bytes32 ipfsSha256,
+        uint256 newFee
+    ) internal override {
+        require(hostTasks[hostAddress][ipfsSha256].blockTimeout != 0);
+        hostTasks[hostAddress][ipfsSha256].fee = newFee;
+    }
+
+    function _deleteTask(
+        address hostAddress,
+        bytes32 ipfsSha256
+    ) internal override {
+        require(hostTasks[hostAddress][ipfsSha256].blockTimeout != 0);
+        delete hostTasks[hostAddress][ipfsSha256];
+    }
+
+    // Internal functions that are view
+
+    function _getHost(
+        address hostAddress
+    )
+        internal
+        view
+        override
+        returns (Host memory)
     {
-        tasks_fees[msg.sender][task_ipfs_sha256].block_timeout = block_timeout;
-        return true;
+        uint32 index = _getHostIndex(hostAddress);
+        return hosts[index - 1];
     }
 
-    function deleteTask(
-        bytes32 task_ipfs_sha256
-    ) public override returns (bool)
-    {
-        delete tasks_fees[msg.sender][task_ipfs_sha256];
-        return true;
-    }
-
-    function getHosts(
-    ) public view override returns (host[] memory)
+    function _getHosts(
+    )
+        internal
+        view
+        override
+        returns (Host[] memory)
     {
         return hosts;
     }
 
-    function updateBlockTimeoutLimit(
-        address host_address,
-        uint256 block_timeout_limit
-    ) public override returns (bool)
+    function _getTask(
+        address hostAddress,
+        bytes32 ipfsSha256
+    )
+        internal
+        view
+        override
+        returns (HostTask memory)
     {
-        uint32 index = hosts_index[host_address];
-        if (index == 0) {
-            return false;
-        }
-        hosts[index - 1].block_timeout_limit = block_timeout_limit;
-        return true;
+        return hostTasks[hostAddress][ipfsSha256];
     }
 
-    function updateHostPublicKey(
-        address host_address,
-        bytes[] calldata public_key,
-        uint8 public_key_type
-    ) public override returns (bool)
-    {
-        uint32 index = hosts_index[host_address];
-        if (index == 0) {
-            return false;
-        }
-        hosts[index - 1].public_key = public_key;
-        hosts[index - 1].public_key_type = public_key_type;
-        return true;
+    // Internal functions that are pure
+
+    // Private functions
+
+    function _getHostIndex(
+        address hostAddress
+    ) private view returns (uint32) {
+        uint32 index = hostsIndex[hostAddress];
+        require(index != 0, "Host does not exist");
+        return index;
     }
 
-    function deleteHost(
-        address host_address
-    ) public override returns (bool)
-    {
-        uint32 index = hosts_index[host_address];
-        if (index == 0) {
-            return false;
-        }
-        uint256 to_pay = hosts[index - 1].stake;
-        hosts[index - 1] = hosts[hosts.length - 1];
-        hosts_index[hosts[index - 1].owner] = index;
-        hosts_index[host_address] = 0;
-        hosts.pop();
-        payable(host_address).transfer(to_pay);
-        return true;
-    }
 }

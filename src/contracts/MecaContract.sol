@@ -17,35 +17,89 @@ import "./SchedulerAbstract.sol";
 
 contract MecaDaoContract
 {
-	address payable owner;
+    /// The owner of the contract
+	address payable public owner;
+    /// The scheduler contract
+    MecaSchedulerAbstractContract schedulerContract;
 
-    MecaSchedulerAbstractContract meca_scheduler_contract;
-
-    constructor() { owner = payable(msg.sender); }
-    modifier onlyOwner {
-        require(
-            msg.sender == owner,
-            "Only owner can call this function."
-        );
+    // custom modifiers
+    /**
+    * @notice The onlyOwner modifier
+    */
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Owner only");
         _;
     }
 
-    function clear() public onlyOwner {
-        meca_scheduler_contract = MecaSchedulerAbstractContract(address(0));
+    // constructor
+    constructor() {
+        owner = payable(msg.sender);
+        schedulerContract = MecaSchedulerAbstractContract(payable(address(0)));
+    }
+
+    // receive function
+
+    /**
+    * @notice The receive function
+    */
+    receive() external payable {
+        revert();
+    }
+
+    // fallback function
+
+    /**
+    * @notice The fallback function
+    */
+    fallback() external payable {
+        revert();
+    }
+
+    // External functions
+
+    /**
+    * @notice The clear function
+    */
+    function clear() external onlyOwner {
+        schedulerContract = MecaSchedulerAbstractContract(
+            payable(address(0))
+        );
         (bool success, ) = owner.call{value: address(this).balance}("");
         require(success, "Transfer failed.");
     }
 
+    /**
+    * @notice The setSchedulerContract function
+    * @param newSchedulerContract The new scheduler contract
+    */
     function setSchedulerContract(
-        address scheduler_contract
-    ) public onlyOwner returns (bool) {
-        meca_scheduler_contract = MecaSchedulerAbstractContract(scheduler_contract);
-        return true;
+        address newSchedulerContract
+    ) external onlyOwner {
+        schedulerContract = MecaSchedulerAbstractContract(
+            payable(newSchedulerContract)
+        );
     }
 
-    function getSchedulerContract(
-    ) public view returns (address) {
-        return address(meca_scheduler_contract);
+    // External functions that are view
+
+    /**
+    * @notice The getSchedulerContract function
+    * @return address The scheduler contract adddress
+    */
+    function getSchedulerContract() external view returns (address) {
+        return address(schedulerContract);
     }
+    
+    // External functions that are pure
+
+    // Public functions
+
+    // Internal functions
+
+    // Internal functions that are view
+
+    // Private functions
+
+
 
 }
