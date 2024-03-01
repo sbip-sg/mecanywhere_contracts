@@ -1,8 +1,7 @@
 const ganache = require("ganache");
-const fs = require('fs');
 
-const accounts_json = fs.readFileSync('./config/accounts.json');
-const accounts_data = JSON.parse(accounts_json);
+var port = process.argv[2];
+var accounts_data = JSON.parse(process.argv[3]);
 
 console.log(Object.entries(accounts_data));
 accounts = Object.entries(accounts_data).map(
@@ -15,7 +14,7 @@ console.log(accounts);
 
 const options = {'wallet': {'accounts': accounts}};
 const server = ganache.server(options);
-const PORT = 8545; // 0 means any available port
+const PORT = port; // 0 means any available port
 server.listen(PORT, async err => {
   if (err) throw err;
 

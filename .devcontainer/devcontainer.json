@@ -8,11 +8,7 @@
 	"customizations": {
 		"vscode": {
 			"extensions": [
-				"ms-python.python",
-				"ms-python.vscode-pylance",
-				"ms-python.isort",
 				"GitHub.vscode-pull-request-github",
-				"ms-python.flake8",
 				"GitHub.copilot",
 				"JuanBlanco.solidity",
 				"ms-vscode.cmake-tools"
