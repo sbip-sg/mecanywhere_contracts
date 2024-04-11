@@ -303,7 +303,7 @@ abstract contract MecaTowerAbstractContract {
         external
     {
         _acceptHost(msg.sender, hostAddress);
-        payable(msg.sender).transfer(HOST_REQUEST_FEE);
+        //payable(msg.sender).transfer(HOST_REQUEST_FEE);
     }
 
     /**
@@ -332,6 +332,21 @@ abstract contract MecaTowerAbstractContract {
         external
     {
         _deleteHost(msg.sender, hostAddress);
+    }
+
+    /**
+    * @notice unregister a tower-host pair by the scheduler
+    * @param towerAddress The address of the tower
+    * @param hostAddress The address of the host
+    */
+    function unregisterTowerHost(
+        address towerAddress,
+        address hostAddress
+    )
+        external
+        onlyScheduler
+    {
+        _deleteHost(towerAddress, hostAddress);
     }
 
     // External functions that are view
