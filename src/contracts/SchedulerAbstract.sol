@@ -55,6 +55,7 @@ abstract contract MecaSchedulerAbstractContract
     * @notice The RunningTask structure
     * @param ipfsSha256 The IPFS hash of the task
     * @param inputHash The input hash of the task
+    * @param outputHash The output hash of the task
     * @param size The size of the task
     * @param towerAddress The address of the tower
     * @param hostAddress The address of the host
@@ -66,6 +67,7 @@ abstract contract MecaSchedulerAbstractContract
     struct RunningTask {
         bytes32 ipfsSha256;
         bytes32 inputHash;
+        bytes32 outputHash;
         uint256 size;
         address towerAddress;
         address hostAddress;
@@ -271,6 +273,7 @@ abstract contract MecaSchedulerAbstractContract
         RunningTask memory runningTask = RunningTask({
             ipfsSha256: ipfsSha256,
             inputHash: inputHash,
+            outputHash: bytes32(0),
             size: taskSize,
             towerAddress: towerAddress,
             hostAddress: hostAddress,
@@ -302,15 +305,59 @@ abstract contract MecaSchedulerAbstractContract
     {
         RunningTask memory runningTask = _getRunningTask(taskId);
         require(
+            block.number > (runningTask.startBlock + runningTask.blockTimeout),
+            "Task not over"
+        );
+        require(
             msg.sender == runningTask.owner,
             "Only the owner can finish the task"
         );
-        _deleteRunningTask(taskId);
-        payable(runningTask.towerAddress).transfer(runningTask.fee.tower);
-        payable(runningTask.hostAddress).transfer(runningTask.fee.host);
-        payable(msg.sender).transfer(runningTask.fee.insurance);
-        address taskOwner = taskContract.getTaskOwner(runningTask.ipfsSha256);
-        payable(taskOwner).transfer(runningTask.fee.task);
+        if (runningTask.outputHash == bytes32(0)) {
+            // not output register from the host
+            _deleteRunningTask(taskId);
+            uint256 totalFee = (
+                runningTask.fee.insurance +
+                runningTask.fee.tower +
+                runningTask.fee.host +
+                runningTask.fee.task
+            );
+            payable(msg.sender).transfer(
+                totalFee
+            );
+            towerContract.unregisterTowerHost(
+                runningTask.towerAddress,
+                runningTask.hostAddress
+            );
+        } else {
+            _deleteRunningTask(taskId);
+            payable(runningTask.towerAddress).transfer(runningTask.fee.tower);
+            payable(runningTask.hostAddress).transfer(runningTask.fee.host);
+            payable(msg.sender).transfer(runningTask.fee.insurance);
+            address taskOwner = taskContract.getTaskOwner(
+                runningTask.ipfsSha256
+            );
+            payable(taskOwner).transfer(runningTask.fee.task);
+        }
+    }
+
+    /**
+    * @notice Register the output of a task
+    * @param taskId The ID of the task
+    * @param outputHash The hash of the output
+    */
+    function registerTaskOutput(
+        bytes32 taskId,
+        bytes32 outputHash
+    )
+        external
+    {
+        RunningTask memory runningTask = _getRunningTask(taskId);
+        require(block.number <= (runningTask.startBlock + runningTask.blockTimeout), "Task last block passed over");
+        require(
+            msg.sender == runningTask.hostAddress,
+            "Only the host can register the output"
+        );
+        _registerTaskOutput(taskId, outputHash);
     }
 
     // External functions that are view
@@ -446,6 +493,19 @@ abstract contract MecaSchedulerAbstractContract
         internal
         virtual;
     
+
+    /**
+    * @notice The registerOutput function
+    * @param taskId The ID of the task
+    * @param outputHash The hash of the output
+    */
+    function _registerTaskOutput(
+        bytes32 taskId,
+        bytes32 outputHash
+    )
+        internal
+        virtual;
+
     /**
     * @notice The deleteRunningTask function
     * @param taskId The ID of the task

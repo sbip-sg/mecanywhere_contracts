@@ -73,6 +73,14 @@ contract MecaSchedulerContract is MecaSchedulerAbstractContract
         towersSize[runningTasks[taskId].towerAddress] += runningTasks[taskId].size;
     }
 
+    function _registerTaskOutput(
+        bytes32 taskId,
+        bytes32 outputHash
+    ) internal override
+    {
+        runningTasks[taskId].outputHash = outputHash;
+    }
+
     function _deleteRunningTask(
         bytes32 taskId
     ) internal override
