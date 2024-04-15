@@ -324,10 +324,10 @@ abstract contract MecaSchedulerAbstractContract
             payable(msg.sender).transfer(
                 totalFee
             );
-            towerContract.unregisterTowerHost(
-                runningTask.towerAddress,
-                runningTask.hostAddress
-            );
+            //towerContract.unregisterTowerHost(
+            //    runningTask.towerAddress,
+            //    runningTask.hostAddress
+            //);
         } else {
             _deleteRunningTask(taskId);
             payable(runningTask.towerAddress).transfer(runningTask.fee.tower);
@@ -358,6 +358,35 @@ abstract contract MecaSchedulerAbstractContract
             "Only the host can register the output"
         );
         _registerTaskOutput(taskId, outputHash);
+    }
+
+
+    function wrongInputHash(
+        bytes32 taskId
+    )
+        external
+    {
+        RunningTask memory runningTask = _getRunningTask(taskId);
+        require(
+            block.number <= (
+                runningTask.startBlock + runningTask.blockTimeout
+            ),
+            "Task last block passed over"
+        );
+        require(
+            msg.sender == runningTask.hostAddress,
+            "Only the host can register a wrong input hash"
+        );
+        _deleteRunningTask(taskId);
+        uint256 totalFee = (
+            runningTask.fee.insurance +
+            runningTask.fee.tower +
+            runningTask.fee.host +
+            runningTask.fee.task
+        );
+        payable(runningTask.owner).transfer(
+            totalFee
+        );
     }
 
     // External functions that are view
