@@ -77,6 +77,16 @@ abstract contract MecaSchedulerAbstractContract
         RunningTaskFee fee;
     }
 
+    /**
+    * @notice The TeeTask structure
+    * @param encryptedInputHash The hash of the encrypted input of the task
+    * @param enclavePublicKey The public key of the enclave
+    */
+    struct TeeTask {
+        bytes32 encryptedInputHash;
+        bytes32[2] enclavePublicKey;
+    }
+
     event TaskSent(
         bytes32 taskId,
         address sender
@@ -312,9 +322,15 @@ abstract contract MecaSchedulerAbstractContract
             msg.sender == runningTask.owner,
             "Only the owner can finish the task"
         );
+        uint8 computingType = taskContract.getTaskComputingType(
+            runningTask.ipfsSha256
+        );
+        _deleteRunningTask(taskId);
+        if (computingType == 2) {
+            _deleteTeeTask(taskId);
+        }
         if (runningTask.outputHash == bytes32(0)) {
             // not output register from the host
-            _deleteRunningTask(taskId);
             uint256 totalFee = (
                 runningTask.fee.insurance +
                 runningTask.fee.tower +
@@ -329,7 +345,6 @@ abstract contract MecaSchedulerAbstractContract
             //    runningTask.hostAddress
             //);
         } else {
-            _deleteRunningTask(taskId);
             payable(runningTask.towerAddress).transfer(runningTask.fee.tower);
             payable(runningTask.hostAddress).transfer(runningTask.fee.host);
             payable(msg.sender).transfer(runningTask.fee.insurance);
@@ -389,6 +404,62 @@ abstract contract MecaSchedulerAbstractContract
         );
     }
 
+    /**
+    * @notice Register the enclave public key of a task
+    * @param taskId The ID of the task
+    * @param enclavePublicKey The public key of the enclave
+    */
+    function registerTeeTaskPubKey(
+        bytes32 taskId,
+        bytes32[2] calldata enclavePublicKey
+    )
+        external
+    {
+        RunningTask memory runningTask = _getRunningTask(taskId);
+        require(
+            block.number <= (
+                runningTask.startBlock + runningTask.blockTimeout
+            ),
+            "Task last block passed over"
+        );
+        require(
+            msg.sender == runningTask.hostAddress,
+            "Only the host can register the enclave public key"
+        );
+        _registerTeeTaskPubKey(
+            taskId,
+            enclavePublicKey
+        );
+    }
+
+    /**
+    * @notice Register the encrypted input of a task
+    * @param taskId The ID of the task
+    * @param encryptedInputHash The hash of the encrypted input
+    */
+    function registerTeeTaskEncryptedInput(
+        bytes32 taskId,
+        bytes32 encryptedInputHash
+    )
+        external
+    {
+        RunningTask memory runningTask = _getRunningTask(taskId);
+        require(
+            block.number <= (
+                runningTask.startBlock + runningTask.blockTimeout
+            ),
+            "Task last block passed over"
+        );
+        require(
+            msg.sender == runningTask.owner,
+            "Only the owner can register the encrypted input"
+        );
+        _registerTeeTaskEncryptedInput(
+            taskId,
+            encryptedInputHash
+        );
+    }
+
     // External functions that are view
     
     /**
@@ -427,6 +498,21 @@ abstract contract MecaSchedulerAbstractContract
         return _getRunningTask(taskId);
     }
     
+
+    /**
+    * @notice Get the running task
+    * @param taskId The ID of the task
+    * @return TeeTask The tee task information
+    */
+    function getTeeTask(
+        bytes32 taskId
+    )
+        external
+        view
+        returns (TeeTask memory)
+    {
+        return _getTeeTask(taskId);
+    }
     // External functions that are pure
 
     // Public functions
@@ -536,6 +622,30 @@ abstract contract MecaSchedulerAbstractContract
         virtual;
 
     /**
+    * @notice The registerTeeTaskPubKey function
+    * @param taskId The ID of the task
+    * @param enclavePublicKey The public key of the enclave
+    */
+    function _registerTeeTaskPubKey(
+        bytes32 taskId,
+        bytes32[2] calldata enclavePublicKey
+    )
+        internal
+        virtual;
+    
+    /**
+    * @notice The registerTeeTaskEncryptedInput function
+    * @param taskId The ID of the task
+    * @param encryptedInputHash The hash of the encrypted input
+    */
+    function _registerTeeTaskEncryptedInput(
+        bytes32 taskId,
+        bytes32 encryptedInputHash
+    )
+        internal
+        virtual;
+
+    /**
     * @notice The deleteRunningTask function
     * @param taskId The ID of the task
     */
@@ -545,6 +655,15 @@ abstract contract MecaSchedulerAbstractContract
         internal
         virtual;
 
+    /**
+    * @notice The deleteTeeTask function
+    * @param taskId The ID of the task
+    */
+    function _deleteTeeTask(
+        bytes32 taskId
+    )
+        internal
+        virtual;
     // Internal functions that are view
 
     /**
@@ -559,6 +678,19 @@ abstract contract MecaSchedulerAbstractContract
         view
         virtual
         returns (RunningTask memory);
+
+    /**
+    * @notice Get the running task
+    * @param taskId The ID of the task
+    * @return TeeTask The tee task information
+    */
+    function _getTeeTask(
+        bytes32 taskId
+    )
+        internal
+        view
+        virtual
+        returns (TeeTask memory);
 
     // Private functions
 
