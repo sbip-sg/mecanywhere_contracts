@@ -22,6 +22,8 @@ contract MecaSchedulerContract is MecaSchedulerAbstractContract
     mapping(address => uint256) public towersSize;
     /// The end block of the hosts map of hostAddress to endBlock
     mapping(address => uint256) public hostsEndBlock;
+    /// the tee task information
+    mapping(bytes32 => TeeTask) public teeTasks;
 
     // custom modifiers
 
@@ -81,12 +83,43 @@ contract MecaSchedulerContract is MecaSchedulerAbstractContract
         runningTasks[taskId].outputHash = outputHash;
     }
 
+    function _registerTeeTaskPubKey(
+        bytes32 taskId,
+        bytes32[2] calldata enclavePublicKey
+    ) internal override
+    {
+        if (teeTasks[taskId].enclavePublicKey[0] != 0 || teeTasks[taskId].enclavePublicKey[1] != 0) {
+            revert();
+        }
+        teeTasks[taskId].enclavePublicKey = enclavePublicKey;
+    }
+
+    function _registerTeeTaskEncryptedInput(
+        bytes32 taskId,
+        bytes32 encryptedInputHash
+    ) internal override
+    {
+        if (teeTasks[taskId].encryptedInputHash != 0) {
+            revert();
+        }
+        teeTasks[taskId].encryptedInputHash = encryptedInputHash;
+    }
+
+
     function _deleteRunningTask(
         bytes32 taskId
     ) internal override
     {
         towersSize[runningTasks[taskId].towerAddress] -= runningTasks[taskId].size;
         delete runningTasks[taskId];
+    }
+
+
+    function _deleteTeeTask(
+        bytes32 taskId
+    ) internal override
+    {
+        delete teeTasks[taskId];
     }
 
     // Internal functions that are view
@@ -98,6 +131,16 @@ contract MecaSchedulerContract is MecaSchedulerAbstractContract
         return runningTasks[taskId];
     }
 
+    function _getTeeTask(
+        bytes32 taskId
+    )
+        internal
+        view
+        override
+        returns (TeeTask memory)
+    {
+        return teeTasks[taskId];
+    }
     // Private functions
 
 }
