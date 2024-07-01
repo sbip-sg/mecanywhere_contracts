@@ -31,7 +31,7 @@ abstract contract MecaTaskAbstractContract
     * @param ipfsSha256 The IPFS hash of the task
     * @param owner The owner of the task
     * @param fee The fee of the task
-    * @param computingType The type of computing (0: cpu / 1: gpu)
+    * @param computingType The type of computing (0: cpu / 1: gpu / 2: tee)
     * @param size The i/o size of the task (in bytes)
     */
     struct Task {
