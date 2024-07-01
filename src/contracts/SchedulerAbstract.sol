@@ -322,15 +322,9 @@ abstract contract MecaSchedulerAbstractContract
             msg.sender == runningTask.owner,
             "Only the owner can finish the task"
         );
-        uint8 computingType = taskContract.getTaskComputingType(
-            runningTask.ipfsSha256
-        );
-        _deleteRunningTask(taskId);
-        if (computingType == 2) {
-            _deleteTeeTask(taskId);
-        }
         if (runningTask.outputHash == bytes32(0)) {
             // not output register from the host
+            _deleteRunningTask(taskId);
             uint256 totalFee = (
                 runningTask.fee.insurance +
                 runningTask.fee.tower +
@@ -340,11 +334,12 @@ abstract contract MecaSchedulerAbstractContract
             payable(msg.sender).transfer(
                 totalFee
             );
-            //towerContract.unregisterTowerHost(
-            //    runningTask.towerAddress,
-            //    runningTask.hostAddress
-            //);
+            towerContract.unregisterTowerHost(
+                runningTask.towerAddress,
+                runningTask.hostAddress
+            );
         } else {
+            _deleteRunningTask(taskId);
             payable(runningTask.towerAddress).transfer(runningTask.fee.tower);
             payable(runningTask.hostAddress).transfer(runningTask.fee.host);
             payable(msg.sender).transfer(runningTask.fee.insurance);
