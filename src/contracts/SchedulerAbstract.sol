@@ -334,10 +334,10 @@ abstract contract MecaSchedulerAbstractContract
             payable(msg.sender).transfer(
                 totalFee
             );
-            towerContract.unregisterTowerHost(
-                runningTask.towerAddress,
-                runningTask.hostAddress
-            );
+            //towerContract.unregisterTowerHost(
+            //    runningTask.towerAddress,
+            //    runningTask.hostAddress
+            //);
         } else {
             _deleteRunningTask(taskId);
             payable(runningTask.towerAddress).transfer(runningTask.fee.tower);
