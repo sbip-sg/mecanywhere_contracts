@@ -83,15 +83,15 @@ contract MecaSchedulerContract is MecaSchedulerAbstractContract
         runningTasks[taskId].outputHash = outputHash;
     }
 
-    function _registerTeeTaskPubKey(
+    function _registerTeeTaskInitialInputHash(
         bytes32 taskId,
-        bytes32[2] calldata enclavePublicKey
+        bytes32 initialInputHash
     ) internal override
     {
-        if (teeTasks[taskId].enclavePublicKey[0] != 0 || teeTasks[taskId].enclavePublicKey[1] != 0) {
+        if (teeTasks[taskId].initialInputHash != 0) {
             revert();
         }
-        teeTasks[taskId].enclavePublicKey = enclavePublicKey;
+        teeTasks[taskId].initialInputHash = initialInputHash;
     }
 
     function _registerTeeTaskEncryptedInput(

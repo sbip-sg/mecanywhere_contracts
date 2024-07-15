@@ -84,7 +84,7 @@ abstract contract MecaSchedulerAbstractContract
     */
     struct TeeTask {
         bytes32 encryptedInputHash;
-        bytes32[2] enclavePublicKey;
+        bytes32 initialInputHash;
     }
 
     event TaskSent(
@@ -405,13 +405,13 @@ abstract contract MecaSchedulerAbstractContract
     }
 
     /**
-    * @notice Register the enclave public key of a task
+    * @notice Register the initial input sent by the user to the enclave
     * @param taskId The ID of the task
-    * @param enclavePublicKey The public key of the enclave
+    * @param initialInputHash The hash of the initial input
     */
-    function registerTeeTaskPubKey(
+    function registerTeeTaskInitialInput(
         bytes32 taskId,
-        bytes32[2] calldata enclavePublicKey
+        bytes32 initialInputHash
     )
         external
     {
@@ -423,12 +423,12 @@ abstract contract MecaSchedulerAbstractContract
             "Task last block passed over"
         );
         require(
-            msg.sender == runningTask.hostAddress,
-            "Only the host can register the enclave public key"
+            msg.sender == runningTask.owner,
+            "Only the owner can register the initial input hash"
         );
-        _registerTeeTaskPubKey(
+        _registerTeeTaskInitialInputHash(
             taskId,
-            enclavePublicKey
+            initialInputHash
         );
     }
 
@@ -624,11 +624,11 @@ abstract contract MecaSchedulerAbstractContract
     /**
     * @notice The registerTeeTaskPubKey function
     * @param taskId The ID of the task
-    * @param enclavePublicKey The public key of the enclave
+    * @param initialInputHash The hash of the initial input
     */
-    function _registerTeeTaskPubKey(
+    function _registerTeeTaskInitialInputHash(
         bytes32 taskId,
-        bytes32[2] calldata enclavePublicKey
+        bytes32 initialInputHash
     )
         internal
         virtual;
