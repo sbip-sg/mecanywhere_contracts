@@ -84,16 +84,19 @@ abstract contract MecaSchedulerAbstractContract {
         bytes32[2] enclavePublicKey;
     }
 
-    event TaskSent(bytes32 taskId, address sender);
+    event TaskSent(
+        bytes32 taskId,
+        bytes32 ipfsSha256,
+        bytes32 inputHash,
+        address towerAddress,
+        address hostAddress,
+        address sender
+    );
 
     event TaskFinished(
         bytes32 taskId,
-        uint256 size,
-        address towerAddress,
-        address hostAddress,
-        address owner,
-        uint256 startBlock,
-        uint256 blockTimeout
+        bytes32 outputHash,
+        RunningTaskFee fee
     );
 
     // custom modifiers
@@ -222,7 +225,6 @@ abstract contract MecaSchedulerAbstractContract {
             taskBlockTimeout
         );
 
-        uint256 towerSizeLimit = towerContract.getTowerSizeLimit(towerAddress);
         uint256 hostBlockTimeoutLimit = hostContract.getHostBlockTimeoutLimit(
             hostAddress
         );
@@ -237,12 +239,17 @@ abstract contract MecaSchedulerAbstractContract {
             "Host block timeout limit exceeded"
         );
 
-        uint256 usedTowerSize = getTowerCurrentSize(towerAddress);
+        { // scope to avoid stack too deep error
+            uint256 towerSizeLimit = towerContract.getTowerSizeLimit(
+                towerAddress
+            );
+            uint256 usedTowerSize = getTowerCurrentSize(towerAddress);
 
-        require(
-            (usedTowerSize + taskSize) <= towerSizeLimit,
-            "Tower size limit exceeded"
-        );
+            require(
+                (usedTowerSize + taskSize) <= towerSizeLimit,
+                "Tower size limit exceeded"
+            );
+        }
 
         bytes32 taskId = keccak256(
             abi.encodePacked(
@@ -271,7 +278,14 @@ abstract contract MecaSchedulerAbstractContract {
 
         _addRunningTask(taskId, runningTask);
 
-        emit TaskSent(taskId, msg.sender);
+        emit TaskSent(
+            taskId,
+            ipfsSha256,
+            inputHash,
+            towerAddress,
+            hostAddress,
+            msg.sender
+        );
     }
 
     /**
@@ -310,15 +324,7 @@ abstract contract MecaSchedulerAbstractContract {
             payable(taskOwner).transfer(runningTask.fee.task);
         }
 
-        emit TaskFinished(
-            taskId,
-            runningTask.size,
-            runningTask.towerAddress,
-            runningTask.hostAddress,
-            runningTask.owner,
-            runningTask.startBlock,
-            runningTask.blockTimeout
-        );
+        emit TaskFinished(taskId, runningTask.outputHash, runningTask.fee);
     }
 
     /**
@@ -441,6 +447,7 @@ abstract contract MecaSchedulerAbstractContract {
     function getTeeTask(bytes32 taskId) external view returns (TeeTask memory) {
         return _getTeeTask(taskId);
     }
+
     // External functions that are pure
 
     // Public functions
@@ -563,6 +570,7 @@ abstract contract MecaSchedulerAbstractContract {
      * @param taskId The ID of the task
      */
     function _deleteTeeTask(bytes32 taskId) internal virtual;
+
     // Internal functions that are view
 
     /**
