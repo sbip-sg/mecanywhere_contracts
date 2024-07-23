@@ -89,7 +89,17 @@ abstract contract MecaSchedulerAbstractContract
 
     event TaskSent(
         bytes32 taskId,
+        bytes32 ipfsSha256,
+        bytes32 inputHash,
+        address towerAddress,
+        address hostAddress,
         address sender
+    );
+
+    event TaskFinished(
+        bytes32 taskId,
+        bytes32 outputHash,
+        RunningTaskFee fee
     );
 
     // custom modifiers
@@ -245,9 +255,6 @@ abstract contract MecaSchedulerAbstractContract
             taskBlockTimeout
         );
 
-        uint256 towerSizeLimit = towerContract.getTowerSizeLimit(
-            towerAddress
-        );
         uint256 hostBlockTimeoutLimit = hostContract.getHostBlockTimeoutLimit(
             hostAddress
         );
@@ -261,12 +268,17 @@ abstract contract MecaSchedulerAbstractContract
             "Host block timeout limit exceeded"
         );
 
-        uint256 usedTowerSize = getTowerCurrentSize(towerAddress);
+        { // scope to avoid stack too deep error
+            uint256 towerSizeLimit = towerContract.getTowerSizeLimit(
+                towerAddress
+            );
+            uint256 usedTowerSize = getTowerCurrentSize(towerAddress);
 
-        require(
-            (usedTowerSize + taskSize) <= towerSizeLimit,
-            "Tower size limit exceeded"
-        );
+            require(
+                (usedTowerSize + taskSize) <= towerSizeLimit,
+                "Tower size limit exceeded"
+            );
+        }
 
         bytes32 taskId = keccak256(
             abi.encodePacked(
@@ -300,6 +312,10 @@ abstract contract MecaSchedulerAbstractContract
 
         emit TaskSent(
             taskId,
+            ipfsSha256,
+            inputHash,
+            towerAddress,
+            hostAddress,
             msg.sender
         );
     }
@@ -353,6 +369,8 @@ abstract contract MecaSchedulerAbstractContract
             );
             payable(taskOwner).transfer(runningTask.fee.task);
         }
+
+        emit TaskFinished(taskId, runningTask.outputHash, runningTask.fee);
     }
 
     /**
@@ -513,6 +531,7 @@ abstract contract MecaSchedulerAbstractContract
     {
         return _getTeeTask(taskId);
     }
+
     // External functions that are pure
 
     // Public functions
