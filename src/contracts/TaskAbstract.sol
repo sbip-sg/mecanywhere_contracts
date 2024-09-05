@@ -2,7 +2,7 @@
 /*
 
 Name: MecaTaskAbstractContract
-Description: An on-chain  abstract Task contract for MECA ecosystem
+Description: An on-chain  abstract Task contract for MECAnywhere ecosystem
 Author: Ciocirlan Stefan-Dan (sdcioc)
 Date: Feb 2024
 
@@ -16,7 +16,7 @@ pragma solidity ^0.8.17;
 /**
 * @title MecaTaskAbstractContract
 * @author Ciocirlan Stefan-Dan (sdcioc)
-* @notice The Task abstract contract for the MECA ecosystem
+* @notice The Task abstract contract for the MECAnywhere ecosystem
 * @dev Give the Task structure and and
 * external function for the Task contract
 */

@@ -4,7 +4,7 @@ FROM ubuntu:22.04
 # LABEL about the custom image
 LABEL maintainer="dancioc@nus.edu.sg"
 LABEL version="0.2"
-LABEL description="This is a custom Docker Image for MECA EVM contracts"
+LABEL description="This is a custom Docker Image for MECAnywhere EVM contracts"
 
 # Disable Prompt During Packages Installation
 ARG DEBIAN_FRONTEND=noninteractive
