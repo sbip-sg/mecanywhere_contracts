@@ -2,7 +2,7 @@
 /*
 
 Name: MecaTowerContract
-Description: An on-chain Tower contract for MECA ecosystem
+Description: An on-chain Tower contract for MECAnywhere ecosystem
 Author: Ciocirlan Stefan-Dan (sdcioc)
 Date: Feb 2024
 

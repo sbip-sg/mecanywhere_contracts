@@ -1,6 +1,6 @@
 // If you want to run as a non-root user in the container, see .devcontainer/docker-compose.yml.
 {
-	"name": "MECA ganache devcontainer",
+	"name": "MECAnywhere ganache devcontainer",
 	"build": { "dockerfile": "Dockerfile" },
 	"runArgs": [
 		"--rm"

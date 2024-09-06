@@ -2,7 +2,7 @@
 /*
 
 Name: MecaDaoContract
-Description: An on-chain DAO contract for MECA ecosystem
+Description: An on-chain DAO contract for MECAnywhere ecosystem
 Author: Ciocirlan Stefan-Dan (sdcioc)
 Date: Feb 2024
 

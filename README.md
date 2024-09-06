@@ -1,2 +1,5 @@
-# meca_contracts
-The contracts of MECA project with a ganache environment.
+# MECAnywhere Contracts
+
+The contracts of MECAnywhere project.
+
+Local test deployment can be setup with Gananche.

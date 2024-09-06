@@ -2,7 +2,7 @@
 /*
 
 Name: MecaSchedulerAbstractContract
-Description: An on-chain  abstract Scheduler contract for MECA ecosystem
+Description: An on-chain  abstract Scheduler contract for MECAnywhere ecosystem
 Author: Ciocirlan Stefan-Dan (sdcioc)
 Date: Feb 2024
 
